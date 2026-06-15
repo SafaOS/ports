@@ -1,55 +1,5 @@
-From aca7e954a91e4910cac6976373bb17192398d741 Mon Sep 17 00:00:00 2001
-From: safiworks <116169309+safiworks@users.noreply.github.com>
-Date: Sun, 14 Jun 2026 23:42:29 +0300
-Subject: [PATCH] feat: SafaOS support
-
----
- CMakeLists.txt                           |  29 +-
- build-scripts/config.sub                 |   1 +
- cmake/sdlplatform.cmake                  |   2 +
- include/SDL_config.h.cmake               |   2 +
- include/SDL_platform.h                   |   4 +
- sdl-safaos/.gitignore                    |   2 +
- sdl-safaos/Cargo.lock                    | 585 +++++++++++++++++++++++
- sdl-safaos/Cargo.toml                    |  12 +
- sdl-safaos/build.sh                      |  17 +
- sdl-safaos/src/audio.rs                  |  59 +++
- sdl-safaos/src/lib.rs                    |  16 +
- sdl-safaos/src/video.rs                  | 389 +++++++++++++++
- sdl-safaos/src/video/defs.rs             | 180 +++++++
- sdl-safaos/src/video/sdl_scancode.rs     |  95 ++++
- src/audio/SDL_audio.c                    |   3 +
- src/audio/SDL_sysaudio.h                 |   1 +
- src/audio/safaos/SDL_safaosaudio.c       | 104 ++++
- src/audio/safaos/SDL_safaosaudio.h       |  37 ++
- src/dynapi/SDL_dynapi.h                  |   2 +
- src/file/SDL_rwops.c                     |   4 +-
- src/joystick/SDL_steam_virtual_gamepad.c |   4 +-
- src/stdlib/SDL_malloc.c                  |   9 +
- src/thread/pthread/SDL_syssem.c          |   2 +-
- src/thread/pthread/SDL_systhread.c       |   8 +-
- src/thread/pthread/SDL_systls.c          |   4 +
- src/timer/safaos/SDL_systimer.c          |  81 ++++
- src/video/SDL_sysvideo.h                 |   1 +
- src/video/SDL_video.c                    |   3 +
- src/video/safaos/SDL_safaosvideo.c       | 161 +++++++
- 29 files changed, 1808 insertions(+), 9 deletions(-)
- create mode 100644 sdl-safaos/.gitignore
- create mode 100644 sdl-safaos/Cargo.lock
- create mode 100644 sdl-safaos/Cargo.toml
- create mode 100755 sdl-safaos/build.sh
- create mode 100644 sdl-safaos/src/audio.rs
- create mode 100644 sdl-safaos/src/lib.rs
- create mode 100644 sdl-safaos/src/video.rs
- create mode 100644 sdl-safaos/src/video/defs.rs
- create mode 100644 sdl-safaos/src/video/sdl_scancode.rs
- create mode 100644 src/audio/safaos/SDL_safaosaudio.c
- create mode 100644 src/audio/safaos/SDL_safaosaudio.h
- create mode 100644 src/timer/safaos/SDL_systimer.c
- create mode 100644 src/video/safaos/SDL_safaosvideo.c
-
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 8e5fb1c..23b1072 100644
+index 8e5fb1c5b..23b10727f 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -359,7 +359,7 @@ if(EMSCRIPTEN)
@@ -97,7 +47,7 @@ index 8e5fb1c..23b1072 100644
    # Hide noisy warnings that intend to aid mostly during initial stages of porting a new
    # project. Uncomment at will for verbose cross-compiling -I/../ path info.
 diff --git a/build-scripts/config.sub b/build-scripts/config.sub
-index 3d35cde..4972bea 100755
+index 3d35cde17..4972beacc 100755
 --- a/build-scripts/config.sub
 +++ b/build-scripts/config.sub
 @@ -2099,6 +2099,7 @@ case $os in
@@ -108,8 +58,20 @@ index 3d35cde..4972bea 100755
  	| rhapsody* \
  	| riscix* \
  	| riscos* \
+diff --git a/cmake/sdlchecks.cmake b/cmake/sdlchecks.cmake
+index 79b866fff..5c0ca9e8c 100644
+--- a/cmake/sdlchecks.cmake
++++ b/cmake/sdlchecks.cmake
+@@ -984,6 +984,7 @@ macro(CheckPTHREAD)
+       set(PTHREAD_CFLAGS "-D_REENTRANT -pthread")
+       set(PTHREAD_LDFLAGS "-pthread")
+     elseif(QNX)
++    elseif(SAFAOS)
+       # pthread support is baked in
+     else()
+       set(PTHREAD_CFLAGS "-D_REENTRANT")
 diff --git a/cmake/sdlplatform.cmake b/cmake/sdlplatform.cmake
-index d0d5767..b686a03 100644
+index d0d57671e..b686a03d9 100644
 --- a/cmake/sdlplatform.cmake
 +++ b/cmake/sdlplatform.cmake
 @@ -31,6 +31,8 @@ macro(SDL_DetectCMakePlatform)
@@ -122,7 +84,7 @@ index d0d5767..b686a03 100644
      if(CMAKE_SYSTEM_NAME MATCHES ".*(Darwin|MacOS).*")
        set(SDL_CMAKE_PLATFORM MACOS)
 diff --git a/include/SDL_config.h.cmake b/include/SDL_config.h.cmake
-index dbee3c7..684c575 100644
+index dbee3c7bc..684c575af 100644
 --- a/include/SDL_config.h.cmake
 +++ b/include/SDL_config.h.cmake
 @@ -301,6 +301,7 @@
@@ -142,7 +104,7 @@ index dbee3c7..684c575 100644
  #cmakedefine SDL_VIDEO_DRIVER_WINDOWS @SDL_VIDEO_DRIVER_WINDOWS@
  #cmakedefine SDL_VIDEO_DRIVER_WINRT @SDL_VIDEO_DRIVER_WINRT@
 diff --git a/include/SDL_platform.h b/include/SDL_platform.h
-index 36df782..99f73fe 100644
+index 36df782a4..99f73fe31 100644
 --- a/include/SDL_platform.h
 +++ b/include/SDL_platform.h
 @@ -36,6 +36,10 @@
@@ -158,7 +120,7 @@ index 36df782..99f73fe 100644
  #define __BSDI__    1
 diff --git a/sdl-safaos/.gitignore b/sdl-safaos/.gitignore
 new file mode 100644
-index 0000000..0f9d898
+index 000000000..0f9d898df
 --- /dev/null
 +++ b/sdl-safaos/.gitignore
 @@ -0,0 +1,2 @@
@@ -166,7 +128,7 @@ index 0000000..0f9d898
 +out
 diff --git a/sdl-safaos/Cargo.lock b/sdl-safaos/Cargo.lock
 new file mode 100644
-index 0000000..1a4c85b
+index 000000000..1a4c85b54
 --- /dev/null
 +++ b/sdl-safaos/Cargo.lock
 @@ -0,0 +1,585 @@
@@ -757,7 +719,7 @@ index 0000000..1a4c85b
 +checksum = "6df3dc4292935e51816d896edcd52aa30bc297907c26167fec31e2b0c6a32524"
 diff --git a/sdl-safaos/Cargo.toml b/sdl-safaos/Cargo.toml
 new file mode 100644
-index 0000000..3478683
+index 000000000..347868374
 --- /dev/null
 +++ b/sdl-safaos/Cargo.toml
 @@ -0,0 +1,12 @@
@@ -775,7 +737,7 @@ index 0000000..3478683
 +safa-api = { git = "https://github.com/SafaOS/safa-api", features=["std"] }
 diff --git a/sdl-safaos/build.sh b/sdl-safaos/build.sh
 new file mode 100755
-index 0000000..8e2c8f5
+index 000000000..8e2c8f59c
 --- /dev/null
 +++ b/sdl-safaos/build.sh
 @@ -0,0 +1,17 @@
@@ -798,7 +760,7 @@ index 0000000..8e2c8f5
 +cp $sasdl "out/libSafaSDL.a"
 diff --git a/sdl-safaos/src/audio.rs b/sdl-safaos/src/audio.rs
 new file mode 100644
-index 0000000..93bb430
+index 000000000..93bb43077
 --- /dev/null
 +++ b/sdl-safaos/src/audio.rs
 @@ -0,0 +1,59 @@
@@ -863,7 +825,7 @@ index 0000000..93bb430
 +}
 diff --git a/sdl-safaos/src/lib.rs b/sdl-safaos/src/lib.rs
 new file mode 100644
-index 0000000..31b152b
+index 000000000..31b152b36
 --- /dev/null
 +++ b/sdl-safaos/src/lib.rs
 @@ -0,0 +1,16 @@
@@ -885,7 +847,7 @@ index 0000000..31b152b
 +}
 diff --git a/sdl-safaos/src/video.rs b/sdl-safaos/src/video.rs
 new file mode 100644
-index 0000000..24f206c
+index 000000000..24f206cb1
 --- /dev/null
 +++ b/sdl-safaos/src/video.rs
 @@ -0,0 +1,389 @@
@@ -1280,7 +1242,7 @@ index 0000000..24f206c
 +}
 diff --git a/sdl-safaos/src/video/defs.rs b/sdl-safaos/src/video/defs.rs
 new file mode 100644
-index 0000000..0b9980d
+index 000000000..0b9980d6a
 --- /dev/null
 +++ b/sdl-safaos/src/video/defs.rs
 @@ -0,0 +1,180 @@
@@ -1466,7 +1428,7 @@ index 0000000..0b9980d
 +}
 diff --git a/sdl-safaos/src/video/sdl_scancode.rs b/sdl-safaos/src/video/sdl_scancode.rs
 new file mode 100644
-index 0000000..1a2fb64
+index 000000000..1a2fb640c
 --- /dev/null
 +++ b/sdl-safaos/src/video/sdl_scancode.rs
 @@ -0,0 +1,95 @@
@@ -1566,21 +1528,21 @@ index 0000000..1a2fb64
 +pub const SDL_SCANCODE_LALT: SDLScancode = 226;
 +pub const SDL_SCANCODE_LGUI: SDLScancode = 227;
 diff --git a/src/audio/SDL_audio.c b/src/audio/SDL_audio.c
-index 421adbc..a49d96e 100644
+index 421adbc76..2d6b00043 100644
 --- a/src/audio/SDL_audio.c
 +++ b/src/audio/SDL_audio.c
-@@ -134,6 +134,9 @@ static const AudioBootStrap *const bootstrap[] = {
+@@ -87,6 +87,9 @@ static const AudioBootStrap *const bootstrap[] = {
+ #ifdef SDL_AUDIO_DRIVER_HAIKU
+     &HAIKUAUDIO_bootstrap,
  #endif
- #ifdef SDL_AUDIO_DRIVER_DUMMY
-     &DUMMYAUDIO_bootstrap,
-+#endif
 +#ifdef SDL_AUDIO_DRIVER_SAFAOS
 +    &SAFAAUD_bootstrap,
++#endif
+ #ifdef SDL_AUDIO_DRIVER_COREAUDIO
+     &COREAUDIO_bootstrap,
  #endif
-     NULL
- };
 diff --git a/src/audio/SDL_sysaudio.h b/src/audio/SDL_sysaudio.h
-index 8738769..25a95ae 100644
+index 87387692c..25a95ae27 100644
 --- a/src/audio/SDL_sysaudio.h
 +++ b/src/audio/SDL_sysaudio.h
 @@ -209,6 +209,7 @@ extern AudioBootStrap VITAAUD_bootstrap;
@@ -1593,7 +1555,7 @@ index 8738769..25a95ae 100644
  
 diff --git a/src/audio/safaos/SDL_safaosaudio.c b/src/audio/safaos/SDL_safaosaudio.c
 new file mode 100644
-index 0000000..7380053
+index 000000000..7380053a9
 --- /dev/null
 +++ b/src/audio/safaos/SDL_safaosaudio.c
 @@ -0,0 +1,104 @@
@@ -1703,7 +1665,7 @@ index 0000000..7380053
 +/* vi: set ts=4 sw=4 expandtab: */
 diff --git a/src/audio/safaos/SDL_safaosaudio.h b/src/audio/safaos/SDL_safaosaudio.h
 new file mode 100644
-index 0000000..c93270c
+index 000000000..c93270c31
 --- /dev/null
 +++ b/src/audio/safaos/SDL_safaosaudio.h
 @@ -0,0 +1,37 @@
@@ -1745,7 +1707,7 @@ index 0000000..c93270c
 +#endif /* SDL_dummyaudio_h_ */
 +/* vi: set ts=4 sw=4 expandtab: */
 diff --git a/src/dynapi/SDL_dynapi.h b/src/dynapi/SDL_dynapi.h
-index 178218c..4c245c0 100644
+index 178218c05..4c245c06a 100644
 --- a/src/dynapi/SDL_dynapi.h
 +++ b/src/dynapi/SDL_dynapi.h
 @@ -47,6 +47,8 @@
@@ -1758,7 +1720,7 @@ index 178218c..4c245c0 100644
  #define SDL_DYNAMIC_API 0
  #elif defined(__EMSCRIPTEN__) && __EMSCRIPTEN__  /* probably not useful on Emscripten. */
 diff --git a/src/file/SDL_rwops.c b/src/file/SDL_rwops.c
-index 94fc047..29a8382 100644
+index 94fc04784..29a8382fa 100644
 --- a/src/file/SDL_rwops.c
 +++ b/src/file/SDL_rwops.c
 @@ -37,8 +37,10 @@
@@ -1782,7 +1744,7 @@ index 94fc047..29a8382 100644
      if (fstat(fileno(f), &st) < 0 || !(S_ISREG(st.st_mode) || S_ISFIFO(st.st_mode))) {
          return SDL_FALSE;
 diff --git a/src/joystick/SDL_steam_virtual_gamepad.c b/src/joystick/SDL_steam_virtual_gamepad.c
-index 2948326..3df89d7 100644
+index 2948326bb..3df89d7d9 100644
 --- a/src/joystick/SDL_steam_virtual_gamepad.c
 +++ b/src/joystick/SDL_steam_virtual_gamepad.c
 @@ -27,7 +27,7 @@
@@ -1804,7 +1766,7 @@ index 2948326..3df89d7 100644
  
      if (stat(file, &sb) == 0) {
 diff --git a/src/stdlib/SDL_malloc.c b/src/stdlib/SDL_malloc.c
-index 35d01a6..4eecc34 100644
+index 35d01a619..4eecc3447 100644
 --- a/src/stdlib/SDL_malloc.c
 +++ b/src/stdlib/SDL_malloc.c
 @@ -524,6 +524,15 @@ DEFAULT_MMAP_THRESHOLD       default: 256K
@@ -1824,7 +1786,7 @@ index 35d01a6..4eecc34 100644
  #define MAX_SIZE_T           (~(size_t)0)
  
 diff --git a/src/thread/pthread/SDL_syssem.c b/src/thread/pthread/SDL_syssem.c
-index 4c6a2e5..9980995 100644
+index 4c6a2e524..9980995a8 100644
 --- a/src/thread/pthread/SDL_syssem.c
 +++ b/src/thread/pthread/SDL_syssem.c
 @@ -31,7 +31,7 @@
@@ -1837,7 +1799,7 @@ index 4c6a2e5..9980995 100644
  #include "../generic/SDL_syssem.c"
  #else
 diff --git a/src/thread/pthread/SDL_systhread.c b/src/thread/pthread/SDL_systhread.c
-index 212fe9c..5482303 100644
+index 212fe9c00..5482303c4 100644
 --- a/src/thread/pthread/SDL_systhread.c
 +++ b/src/thread/pthread/SDL_systhread.c
 @@ -60,7 +60,7 @@
@@ -1877,7 +1839,7 @@ index 212fe9c..5482303 100644
      return 0;
  #else
 diff --git a/src/thread/pthread/SDL_systls.c b/src/thread/pthread/SDL_systls.c
-index 6bd85dc..89a53e1 100644
+index 6bd85dc2f..89a53e19e 100644
 --- a/src/thread/pthread/SDL_systls.c
 +++ b/src/thread/pthread/SDL_systls.c
 @@ -24,6 +24,9 @@
@@ -1897,7 +1859,7 @@ index 6bd85dc..89a53e1 100644
 +#endif
 diff --git a/src/timer/safaos/SDL_systimer.c b/src/timer/safaos/SDL_systimer.c
 new file mode 100644
-index 0000000..240f8c9
+index 000000000..240f8c95c
 --- /dev/null
 +++ b/src/timer/safaos/SDL_systimer.c
 @@ -0,0 +1,81 @@
@@ -1983,7 +1945,7 @@ index 0000000..240f8c9
 +    SAFA_sleep_ms(ms);
 +}
 diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
-index badb1a3..aaea4ea 100644
+index badb1a3ed..aaea4eabc 100644
 --- a/src/video/SDL_sysvideo.h
 +++ b/src/video/SDL_sysvideo.h
 @@ -475,6 +475,7 @@ extern VideoBootStrap RPI_bootstrap;
@@ -1995,7 +1957,7 @@ index badb1a3..aaea4ea 100644
  extern VideoBootStrap Wayland_bootstrap;
  extern VideoBootStrap NACL_bootstrap;
 diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
-index e4f54c6..66b976c 100644
+index e4f54c65c..66b976ceb 100644
 --- a/src/video/SDL_video.c
 +++ b/src/video/SDL_video.c
 @@ -100,6 +100,9 @@ static VideoBootStrap *bootstrap[] = {
@@ -2010,7 +1972,7 @@ index e4f54c6..66b976c 100644
  #endif
 diff --git a/src/video/safaos/SDL_safaosvideo.c b/src/video/safaos/SDL_safaosvideo.c
 new file mode 100644
-index 0000000..fd2dd7f
+index 000000000..fd2dd7f71
 --- /dev/null
 +++ b/src/video/safaos/SDL_safaosvideo.c
 @@ -0,0 +1,161 @@
@@ -2175,6 +2137,3 @@ index 0000000..fd2dd7f
 +};
 +
 +#endif
--- 
-2.54.0
-
