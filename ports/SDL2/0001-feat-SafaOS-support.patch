@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 8e5fb1c5b..23b10727f 100644
+index 8e5fb1c5b..344f44cda 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -359,7 +359,7 @@ if(EMSCRIPTEN)
@@ -11,13 +11,31 @@ index 8e5fb1c5b..23b10727f 100644
    set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
    set(SDL_LOADSO_ENABLED_BY_DEFAULT OFF)
  endif()
+@@ -1122,7 +1122,7 @@ if(SDL_LIBC)
+     check_symbol_exists(posix_fallocate "fcntl.h" HAVE_POSIX_FALLOCATE)
+ 
+     check_library_exists(m pow "" HAVE_LIBM)
+-    if(HAVE_LIBM)
++    if(HAVE_LIBM AND NOT SAFAOS)
+       set(CMAKE_REQUIRED_LIBRARIES m)
+     endif()
+     foreach(_FN
+@@ -1136,7 +1136,7 @@ if(SDL_LIBC)
+     endforeach()
+     if(HAVE_LIBM)
+       set(CMAKE_REQUIRED_LIBRARIES)
+-      if(NOT VITA)
++      if(NOT VITA AND NOT SAFAOS)
+         list(APPEND EXTRA_LIBS m)
+       endif()
+     endif()
 @@ -1411,7 +1411,34 @@ if(ANDROID)
    if(SDL_CLOCK_GETTIME)
      set(HAVE_CLOCK_GETTIME 1)
    endif()
 +elseif(SAFAOS)
 +  list(APPEND EXTRA_LIBS SafaSDL)
- 
++
 +  if(SDL_VIDEO)
 +    set(SDL_VIDEO_DRIVER_SAFAOS 1)
 +    file(GLOB VIDEO_SOURCES ${SDL2_SOURCE_DIR}/src/video/safaos/*.c)
@@ -41,7 +59,7 @@ index 8e5fb1c5b..23b10727f 100644
 +  set(SDL_PTHREADS 1)
 +  set(SDL_THREADS 1)
 +  CheckPTHREAD()
-+
+ 
 +  message_warn("HAVE_SDL_THREADS=${HAVE_SDL_THREADS}, OS=${CMAKE_SYSTEM_NAME}, HAVE_PTHREADS=${HAVE_PTHREADS}, HAVE_MALLOC=${HAVE_MALLOC}")
  elseif(EMSCRIPTEN)
    # Hide noisy warnings that intend to aid mostly during initial stages of porting a new
