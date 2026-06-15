@@ -1,7 +1,45 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 8e5fb1c5b..2a460e5b2 100644
+index 8e5fb1c5b..f4280e628 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
+@@ -84,7 +84,7 @@ include(${SDL2_SOURCE_DIR}/cmake/CheckCPUArchitecture.cmake)
+ # with large inode numbers
+ check_symbol_exists("__GLIBC__" "stdlib.h" LIBC_IS_GLIBC)
+ if (LIBC_IS_GLIBC AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+-    add_definitions(-D_FILE_OFFSET_BITS=64)
++  add_definitions(-D_FILE_OFFSET_BITS=64)
+ endif()
+ 
+ # See docs/release_checklist.md
+@@ -102,11 +102,11 @@ mark_as_advanced(CMAKE_IMPORT_LIBRARY_SUFFIX SDL_CMAKE_DEBUG_POSTFIX)
+ # Calculate a libtool-like version number
+ math(EXPR SDL_BINARY_AGE "${SDL_MINOR_VERSION} * 100 + ${SDL_MICRO_VERSION}")
+ if(SDL_MINOR_VERSION MATCHES "[02468]$")
+-    # Stable branch, 2.24.1 -> libSDL2-2.0.so.0.2400.1
+-    set(SDL_INTERFACE_AGE ${SDL_MICRO_VERSION})
++  # Stable branch, 2.24.1 -> libSDL2-2.0.so.0.2400.1
++  set(SDL_INTERFACE_AGE ${SDL_MICRO_VERSION})
+ else()
+-    # Development branch, 2.23.1 -> libSDL2-2.0.so.0.2301.0
+-    set(SDL_INTERFACE_AGE 0)
++  # Development branch, 2.23.1 -> libSDL2-2.0.so.0.2301.0
++  set(SDL_INTERFACE_AGE 0)
+ endif()
+ 
+ # Increment this if there is an incompatible change - but if that happens,
+@@ -253,9 +253,9 @@ endif()
+ 
+ if(NOT ("$ENV{CFLAGS}" STREQUAL ""))
+   if(CMAKE_VERSION VERSION_LESS 3.11.0)
+-     message(WARNING "SDL's CMakeLists.txt no longer checks the CFLAGS environment.")
+-     message(WARNING "Please use CMake's CMAKE_C_FLAGS and CMAKE_BUILD_TYPE variables directly.")
+-     message(WARNING "Or upgrade to CMake >= 3.11.0, which respects the CFLAGS environment var.")
++    message(WARNING "SDL's CMakeLists.txt no longer checks the CFLAGS environment.")
++    message(WARNING "Please use CMake's CMAKE_C_FLAGS and CMAKE_BUILD_TYPE variables directly.")
++    message(WARNING "Or upgrade to CMake >= 3.11.0, which respects the CFLAGS environment var.")
+   endif()
+ endif()
+ 
 @@ -359,7 +359,7 @@ if(EMSCRIPTEN)
    set(SDL_CPUINFO_ENABLED_BY_DEFAULT OFF)
  endif()
@@ -11,6 +49,15 @@ index 8e5fb1c5b..2a460e5b2 100644
    set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
    set(SDL_LOADSO_ENABLED_BY_DEFAULT OFF)
  endif()
+@@ -620,7 +620,7 @@ if(USE_GCC OR USE_CLANG OR USE_INTELCC OR USE_QCC)
+         list(APPEND EXTRA_CFLAGS "-Werror=documentation")
+       endif()
+     endif()
+-     list(APPEND EXTRA_CFLAGS "-Wdocumentation")
++    list(APPEND EXTRA_CFLAGS "-Wdocumentation")
+   endif()
+ 
+   check_c_compiler_flag(-Wdocumentation-unknown-command HAVE_GCC_WDOCUMENTATION_UNKNOWN_COMMAND)
 @@ -1122,7 +1122,7 @@ if(SDL_LIBC)
      check_symbol_exists(posix_fallocate "fcntl.h" HAVE_POSIX_FALLOCATE)
  
@@ -20,7 +67,16 @@ index 8e5fb1c5b..2a460e5b2 100644
        set(CMAKE_REQUIRED_LIBRARIES m)
      endif()
      foreach(_FN
-@@ -1136,7 +1136,7 @@ if(SDL_LIBC)
+@@ -1130,13 +1130,13 @@ if(SDL_LIBC)
+               exp expf fabs fabsf floor floorf fmod fmodf log logf log10 log10f
+               lround lroundf pow powf round roundf scalbn scalbnf sin sinf sqrt
+               sqrtf tan tanf acos acosf asin asinf trunc truncf)
+-        string(TOUPPER ${_FN} _UPPER)
+-        set(_HAVEVAR "HAVE_${_UPPER}")
+-        check_symbol_exists("${_FN}" "math.h" ${_HAVEVAR})
++      string(TOUPPER ${_FN} _UPPER)
++      set(_HAVEVAR "HAVE_${_UPPER}")
++      check_symbol_exists("${_FN}" "math.h" ${_HAVEVAR})
      endforeach()
      if(HAVE_LIBM)
        set(CMAKE_REQUIRED_LIBRARIES)
@@ -29,13 +85,17 @@ index 8e5fb1c5b..2a460e5b2 100644
          list(APPEND EXTRA_LIBS m)
        endif()
      endif()
-@@ -1411,7 +1411,35 @@ if(ANDROID)
+@@ -1411,7 +1411,39 @@ if(ANDROID)
    if(SDL_CLOCK_GETTIME)
      set(HAVE_CLOCK_GETTIME 1)
    endif()
 +elseif(SAFAOS)
 +  list(APPEND EXTRA_LIBS SafaSDL)
 +  list(APPEND EXTRA_LIBS c)
++
++
++  file(GLOB SAFAOS_MAIN_SOURCES ${SDL2_SOURCE_DIR}/src/main/safaos/*.c)
++  list(APPEND SDLMAIN_SOURCES ${SAFAOS_MAIN_SOURCES})
 +
 +  if(SDL_VIDEO)
 +    set(SDL_VIDEO_DRIVER_SAFAOS 1)
@@ -65,6 +125,219 @@ index 8e5fb1c5b..2a460e5b2 100644
  elseif(EMSCRIPTEN)
    # Hide noisy warnings that intend to aid mostly during initial stages of porting a new
    # project. Uncomment at will for verbose cross-compiling -I/../ path info.
+@@ -1482,30 +1514,30 @@ elseif(EMSCRIPTEN)
+ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
+   if(SDL_AUDIO)
+     if(SYSV5 OR SOLARIS OR HPUX)
+-        # Newer Solaris-based systems, like OpenIndiana, don't have this interface anymore. Check for the header first.
+-        check_include_file(sys/audioio.h HAVE_SYS_AUDIOIO_H)
+-        if(HAVE_SYS_AUDIOIO_H)
+-            set(SDL_AUDIO_DRIVER_SUNAUDIO 1)
+-            file(GLOB SUN_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/sun/*.c)
+-            list(APPEND SOURCE_FILES ${SUN_AUDIO_SOURCES})
+-            set(HAVE_SDL_AUDIO TRUE)
+-        endif()
+-    elseif(NETBSD)
+-        set(SDL_AUDIO_DRIVER_NETBSD 1)
+-        file(GLOB NETBSD_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/netbsd/*.c)
+-        list(APPEND SOURCE_FILES ${NETBSD_AUDIO_SOURCES})
++      # Newer Solaris-based systems, like OpenIndiana, don't have this interface anymore. Check for the header first.
++      check_include_file(sys/audioio.h HAVE_SYS_AUDIOIO_H)
++      if(HAVE_SYS_AUDIOIO_H)
++        set(SDL_AUDIO_DRIVER_SUNAUDIO 1)
++        file(GLOB SUN_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/sun/*.c)
++        list(APPEND SOURCE_FILES ${SUN_AUDIO_SOURCES})
+         set(HAVE_SDL_AUDIO TRUE)
++      endif()
++    elseif(NETBSD)
++      set(SDL_AUDIO_DRIVER_NETBSD 1)
++      file(GLOB NETBSD_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/netbsd/*.c)
++      list(APPEND SOURCE_FILES ${NETBSD_AUDIO_SOURCES})
++      set(HAVE_SDL_AUDIO TRUE)
+     elseif(AIX)
+-        set(SDL_AUDIO_DRIVER_PAUDIO 1)
+-        file(GLOB AIX_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/paudio/*.c)
+-        list(APPEND SOURCE_FILES ${AIX_AUDIO_SOURCES})
+-        set(HAVE_SDL_AUDIO TRUE)
++      set(SDL_AUDIO_DRIVER_PAUDIO 1)
++      file(GLOB AIX_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/paudio/*.c)
++      list(APPEND SOURCE_FILES ${AIX_AUDIO_SOURCES})
++      set(HAVE_SDL_AUDIO TRUE)
+     elseif(QNX)
+-        set(SDL_AUDIO_DRIVER_QSA 1)
+-        file(GLOB QSA_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/qsa/*.c)
+-        list(APPEND SOURCE_FILES ${QSA_AUDIO_SOURCES})
+-        list(APPEND EXTRA_LIBS asound)
+-        set(HAVE_SDL_AUDIO TRUE)
++      set(SDL_AUDIO_DRIVER_QSA 1)
++      file(GLOB QSA_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/qsa/*.c)
++      list(APPEND SOURCE_FILES ${QSA_AUDIO_SOURCES})
++      list(APPEND EXTRA_LIBS asound)
++      set(HAVE_SDL_AUDIO TRUE)
+     endif()
+     CheckOSS()
+     CheckALSA()
+@@ -1822,7 +1854,7 @@ elseif(WINDOWS)
+   # Check for DirectX
+   if(SDL_DIRECTX)
+     if(DEFINED MSVC_VERSION AND NOT ${MSVC_VERSION} LESS 1700)
+-        set(USE_WINSDK_DIRECTX TRUE)
++      set(USE_WINSDK_DIRECTX TRUE)
+     endif()
+     if(NOT MINGW AND NOT USE_WINSDK_DIRECTX)
+       if("$ENV{DXSDK_DIR}" STREQUAL "")
+@@ -1849,7 +1881,7 @@ elseif(WINDOWS)
+     if(HAVE_D3D_H OR HAVE_D3D11_H OR HAVE_D3D12_H OR HAVE_DDRAW_H OR HAVE_DSOUND_H OR HAVE_DINPUT_H)
+       set(HAVE_DIRECTX TRUE)
+       if(NOT MINGW AND NOT USE_WINSDK_DIRECTX)
+-      # TODO: change $ENV{DXSDL_DIR} to get the path from the include checks
++        # TODO: change $ENV{DXSDL_DIR} to get the path from the include checks
+         file(TO_CMAKE_PATH "$ENV{DXSDK_DIR}\\lib\\${PROCESSOR_ARCH}" SDL2_TMP_DXSDK_LIB_DIR)
+         target_link_directories(sdl-build-options INTERFACE "${SDL2_TMP_DXSDK_LIB_DIR}")
+         file(TO_CMAKE_PATH "$ENV{DXSDK_DIR}\\Include" SDL2_TMP_DXSDK_INCLUDE_DIR)
+@@ -2670,25 +2702,25 @@ elseif(VITA)
+   endif()
+ 
+   set(HAVE_ARMSIMD TRUE)
+-#  set(SDL_ARM_SIMD_BLITTERS 1)
+-#  file(GLOB ARMSIMD_SOURCES ${SDL2_SOURCE_DIR}/src/video/arm/pixman-arm-simd*.S)
+-#  list(APPEND SOURCE_FILES ${ARMSIMD_SOURCES})
++  #  set(SDL_ARM_SIMD_BLITTERS 1)
++  #  file(GLOB ARMSIMD_SOURCES ${SDL2_SOURCE_DIR}/src/video/arm/pixman-arm-simd*.S)
++  #  list(APPEND SOURCE_FILES ${ARMSIMD_SOURCES})
+ 
+   set(HAVE_ARMNEON TRUE)
+-#  set(SDL_ARM_NEON_BLITTERS 1)
+-#  file(GLOB ARMNEON_SOURCES ${SDL2_SOURCE_DIR}/src/video/arm/pixman-arm-neon*.S)
+-#  list(APPEND SOURCE_FILES ${ARMNEON_SOURCES})
++  #  set(SDL_ARM_NEON_BLITTERS 1)
++  #  file(GLOB ARMNEON_SOURCES ${SDL2_SOURCE_DIR}/src/video/arm/pixman-arm-neon*.S)
++  #  list(APPEND SOURCE_FILES ${ARMNEON_SOURCES})
+ 
+-#  set_property(SOURCE ${SDL2_SOURCE_DIR}/src/video/arm/pixman-arm-simd-asm.S PROPERTY LANGUAGE C)
+-#  set_property(SOURCE ${SDL2_SOURCE_DIR}/src/video/arm/pixman-arm-neon-asm.S PROPERTY LANGUAGE C)
++  #  set_property(SOURCE ${SDL2_SOURCE_DIR}/src/video/arm/pixman-arm-simd-asm.S PROPERTY LANGUAGE C)
++  #  set_property(SOURCE ${SDL2_SOURCE_DIR}/src/video/arm/pixman-arm-neon-asm.S PROPERTY LANGUAGE C)
+ 
+   target_compile_definitions(sdl-build-options INTERFACE "-D__VITA__")
+ 
+-#  CheckPTHREAD()
++  #  CheckPTHREAD()
+ 
+ elseif(PSP)
+- file(GLOB PSP_MAIN_SOURCES ${SDL2_SOURCE_DIR}/src/main/psp/*.c)
+- list(APPEND SDLMAIN_SOURCES ${PSP_MAIN_SOURCES})
++  file(GLOB PSP_MAIN_SOURCES ${SDL2_SOURCE_DIR}/src/main/psp/*.c)
++  list(APPEND SDLMAIN_SOURCES ${PSP_MAIN_SOURCES})
+ 
+   if(SDL_AUDIO)
+     set(SDL_AUDIO_DRIVER_PSP 1)
+@@ -3240,51 +3272,51 @@ configure_file("${SDL2_SOURCE_DIR}/SDL2.spec.in"
+   "${SDL2_BINARY_DIR}/SDL2.spec" @ONLY)
+ 
+ macro(check_add_debug_flag FLAG SUFFIX)
+-    check_c_compiler_flag(${FLAG} HAS_C_FLAG_${SUFFIX})
+-    if (HAS_C_FLAG_${SUFFIX})
+-        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
+-    endif()
++  check_c_compiler_flag(${FLAG} HAS_C_FLAG_${SUFFIX})
++  if (HAS_C_FLAG_${SUFFIX})
++    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
++  endif()
+ 
+-    if(CMAKE_CXX_COMPILER)
+-      check_cxx_compiler_flag(${FLAG} HAS_CXX_${SUFFIX})
+-      if (HAS_CXX_${SUFFIX})
+-          set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
+-      endif()
++  if(CMAKE_CXX_COMPILER)
++    check_cxx_compiler_flag(${FLAG} HAS_CXX_${SUFFIX})
++    if (HAS_CXX_${SUFFIX})
++      set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
+     endif()
++  endif()
+ endmacro()
+ 
+ macro(asan_check_add_debug_flag ASAN_FLAG)
+-    check_add_debug_flag("-fsanitize=${ASAN_FLAG}" "${ASAN_FLAG}")
+-    if(HAS_C_${ASAN_FLAG} OR HAS_CXX_${ASAN_FLAG})
+-      set(HAVE_ASAN ON)
+-    endif()
++  check_add_debug_flag("-fsanitize=${ASAN_FLAG}" "${ASAN_FLAG}")
++  if(HAS_C_${ASAN_FLAG} OR HAS_CXX_${ASAN_FLAG})
++    set(HAVE_ASAN ON)
++  endif()
+ endmacro()
+ 
+ macro(asan_check_add_debug_flag2 ASAN_FLAG)
+-    # for some sanitize flags we have to manipulate the CMAKE_REQUIRED_LIBRARIES:
+-    # http://cmake.3232098.n2.nabble.com/CHECK-CXX-COMPILER-FLAG-doesn-t-give-correct-result-for-fsanitize-address-tp7600216p7600217.html
++  # for some sanitize flags we have to manipulate the CMAKE_REQUIRED_LIBRARIES:
++  # http://cmake.3232098.n2.nabble.com/CHECK-CXX-COMPILER-FLAG-doesn-t-give-correct-result-for-fsanitize-address-tp7600216p7600217.html
+ 
+-    set(FLAG "-fsanitize=${ASAN_FLAG}")
++  set(FLAG "-fsanitize=${ASAN_FLAG}")
+ 
+-    set (STORED_REQLIBS ${CMAKE_REQUIRED_LIBRARIES})
+-    set (CMAKE_REQUIRED_LIBRARIES "${FLAG};asan")
++  set (STORED_REQLIBS ${CMAKE_REQUIRED_LIBRARIES})
++  set (CMAKE_REQUIRED_LIBRARIES "${FLAG};asan")
+ 
+-    check_c_compiler_flag (${FLAG} HAS_C_FLAG_${ASAN_FLAG})
+-    if (HAS_C_FLAG_${ASAN_FLAG})
+-        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
+-    endif()
++  check_c_compiler_flag (${FLAG} HAS_C_FLAG_${ASAN_FLAG})
++  if (HAS_C_FLAG_${ASAN_FLAG})
++    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
++  endif()
+ 
+-    if(CMAKE_CXX_COMPILER)
+-      check_cxx_compiler_flag (${FLAG} HAS_CXX_FLAG_${ASAN_FLAG})
+-      if (HAS_CXX_${ASAN_FLAG})
+-          set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
+-      endif()
++  if(CMAKE_CXX_COMPILER)
++    check_cxx_compiler_flag (${FLAG} HAS_CXX_FLAG_${ASAN_FLAG})
++    if (HAS_CXX_${ASAN_FLAG})
++      set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
+     endif()
++  endif()
+ 
+-    set (CMAKE_REQUIRED_LIBRARIES ${STORED_REQLIBS})
+-    if(HAS_C_${ASAN_FLAG} OR HAS_CXX_${ASAN_FLAG})
+-      set(HAVE_ASAN ON)
+-    endif()
++  set (CMAKE_REQUIRED_LIBRARIES ${STORED_REQLIBS})
++  if(HAS_C_${ASAN_FLAG} OR HAS_CXX_${ASAN_FLAG})
++    set(HAVE_ASAN ON)
++  endif()
+ endmacro()
+ 
+ # enable AddressSanitizer if supported
+@@ -3369,7 +3401,7 @@ message(STATUS "")
+ message(STATUS " Build Shared Library: ${SDL_SHARED}")
+ message(STATUS " Build Static Library: ${SDL_STATIC}")
+ if(SDL_STATIC)
+-    message(STATUS " Build Static Library with Position Independent Code: ${SDL_STATIC_PIC}")
++  message(STATUS " Build Static Library with Position Independent Code: ${SDL_STATIC_PIC}")
+ endif()
+ message(STATUS "")
+ if(UNIX)
+@@ -3749,11 +3781,11 @@ if(NOT SDL2_DISABLE_INSTALL)
+       set(SOEXT ${CMAKE_SHARED_LIBRARY_SUFFIX}) # ".so", ".dylib", etc.
+       get_target_property(SONAME SDL2 OUTPUT_NAME)
+       if(NOT ANDROID AND NOT MINGW AND NOT OS2)
+-          install(CODE "
++        install(CODE "
+             execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
+               \"lib${SONAME}${SOPOSTFIX}${SOEXT}\" \"libSDL2${SOPOSTFIX}${SOEXT}\"
+               WORKING_DIRECTORY \"${SDL2_BINARY_DIR}\")")
+-          install(FILES ${SDL2_BINARY_DIR}/libSDL2${SOPOSTFIX}${SOEXT} DESTINATION "${CMAKE_INSTALL_LIBDIR}")
++        install(FILES ${SDL2_BINARY_DIR}/libSDL2${SOPOSTFIX}${SOEXT} DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+       endif()
+     endif()
+     install(PROGRAMS ${SDL2_BINARY_DIR}/sdl2-config DESTINATION "${CMAKE_INSTALL_BINDIR}")
 diff --git a/build-scripts/config.sub b/build-scripts/config.sub
 index 3d35cde17..4972beacc 100755
 --- a/build-scripts/config.sub
@@ -1784,6 +2057,42 @@ index 2948326bb..3df89d7d9 100644
      struct stat sb;
  
      if (stat(file, &sb) == 0) {
+diff --git a/src/main/safaos/SDL_safaos_main.c b/src/main/safaos/SDL_safaos_main.c
+new file mode 100644
+index 000000000..ef34f3919
+--- /dev/null
++++ b/src/main/safaos/SDL_safaos_main.c
+@@ -0,0 +1,30 @@
++extern void _salibc_start(void);
++
++#if defined(__x86_64__) || defined(_M_X64)
++__attribute__((naked, noreturn, section(".text._start")))
++void _start(void) {
++    __asm__ volatile (
++        "and  $~0xf, %%rsp\n\t"
++        "push %%rbp\n\t"
++        "push %%rbp\n\t"
++        "call _salibc_start\n\t"
++        "ud2\n\t"
++        ::: "memory"
++    );
++}
++
++#elif defined(__aarch64__) || defined(_M_ARM64)
++__attribute__((naked, noreturn, section(".text._start")))
++void _start(void) {
++    __asm__ volatile (
++        "bic  sp,  sp,  #0xf\n\t"
++        "stp  x29, x29, [sp, #-16]!\n\t"
++        "bl   _salibc_start\n\t"
++        "udf  #0\n\t"
++        ::: "memory"
++    );
++}
++
++#else
++#  error "Unsupported architecture: add a _start for your target in entry.c"
++#endif
 diff --git a/src/stdlib/SDL_malloc.c b/src/stdlib/SDL_malloc.c
 index 35d01a619..4eecc3447 100644
 --- a/src/stdlib/SDL_malloc.c
