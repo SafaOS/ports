@@ -1052,10 +1052,10 @@ index 000000000..8e2c8f59c
 +cp $sasdl "out/libSafaSDL.a"
 diff --git a/sdl-safaos/src/audio.rs b/sdl-safaos/src/audio.rs
 new file mode 100644
-index 000000000..93bb43077
+index 000000000..50d2fba6d
 --- /dev/null
 +++ b/sdl-safaos/src/audio.rs
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,62 @@
 +use std::ffi::c_int;
 +
 +use libartemis::{misc::AudioFormat, stream::Stream};
@@ -1108,6 +1108,9 @@ index 000000000..93bb43077
 +            (false, false) => todo!("Unsigned Audio"),
 +        },
 +    ) else {
++        eprintln!(
++            "SAFA_create_Stream: bad format, freq={freq}, audio_depth={audio_depth}, is_floating={is_floating},is_singed={is_singed}, channels={channels}, samples={samples}"
++        );
 +        return -2;
 +    };
 +
@@ -1847,10 +1850,10 @@ index 87387692c..25a95ae27 100644
  
 diff --git a/src/audio/safaos/SDL_safaosaudio.c b/src/audio/safaos/SDL_safaosaudio.c
 new file mode 100644
-index 000000000..7380053a9
+index 000000000..1f80786e0
 --- /dev/null
 +++ b/src/audio/safaos/SDL_safaosaudio.c
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,124 @@
 +/*
 +  Simple DirectMedia Layer
 +  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
@@ -1874,6 +1877,7 @@ index 000000000..7380053a9
 +#include "../../SDL_internal.h"
 +#include "SDL_assert.h"
 +#include "SDL_error.h"
++#include "SDL_log.h"
 +#include "SDL_stdinc.h"
 +
 +#ifdef SDL_AUDIO_DRIVER_SAFAOS
@@ -1892,21 +1896,38 @@ index 000000000..7380053a9
 +    Uint8 is_floating;
 +    Uint8 is_singed;
 +    Uint32 bit_depth;
++    Uint16 channels;
++    Uint32 freq;
++    Uint32 samples;
++
++    SDL_AudioFormat og_format = _this->spec.format;
++    SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "Requested format: %x\n", og_format);
 +
 +    // Ensure giving in a correct format
 +    if (SDL_AUDIO_ISBIGENDIAN(_this->spec.format))
 +        _this->spec.format = AUDIO_F32LSB;
 +
-+    is_floating = SDL_AUDIO_ISFLOAT(_this->spec.format);
-+    is_singed = SDL_AUDIO_ISSIGNED(_this->spec.format);
-+    bit_depth = _this->spec.format & SDL_AUDIO_MASK_BITSIZE;
++    is_floating = SDL_AUDIO_ISFLOAT(_this->spec.format) != 0;
++    is_singed = SDL_AUDIO_ISSIGNED(_this->spec.format) != 0;
++    bit_depth = SDL_AUDIO_BITSIZE(_this->spec.format);
++    channels = (_this->spec.channels == 1 || _this->spec.channels == 2) ? _this->spec.channels : 2;
++    freq = (_this->spec.freq >= 1000) ? _this->spec.freq : 44100;
++    samples = (_this->spec.samples >= 100) ? _this->spec.samples*channels : freq * channels;
 +
 +    if (!is_floating && !is_singed) {
 +        _this->spec.format = AUDIO_F32LSB;
 +        is_floating = (Uint8)SDL_TRUE;
 +    }
 +
-+    if (!SAFA_create_stream(_this->spec.freq, bit_depth, is_floating, is_singed, _this->spec.channels, (Uint32)_this->spec.samples * (Uint32)_this->spec.channels, &_this->hidden)) {
++    if (is_floating) {
++        bit_depth = 32;
++        _this->spec.format = AUDIO_F32LSB;
++    }
++
++    if (og_format != _this->spec.format)
++        SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO, "format %x != requested %x, FIXME: May be UB\n", _this->spec.format, og_format);
++    SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "final format %x, is_floating=%d, is_singed=%d, bit_depth=%d\n", _this->spec.format, is_floating, is_singed, bit_depth);
++    if (SAFA_create_stream(freq, bit_depth, is_floating, is_singed, channels, samples, &_this->hidden) != 0) {
 +        SDL_SetError("Failed to construct a valid audio format for libartemis");
 +        return -1;
 +    }
@@ -1922,6 +1943,8 @@ index 000000000..7380053a9
 +
 +Uint8* SAFAAUD_get_stream_buf(void* stream);
 +static Uint8* SAFAAUD_GetDeviceBuf(_THIS) {
++    if (_this->hidden == NULL)
++        return NULL;
 +    return SAFAAUD_get_stream_buf(_this->hidden);
 +}
 +
@@ -1949,7 +1972,7 @@ index 000000000..7380053a9
 +}
 +
 +AudioBootStrap SAFAAUD_bootstrap = {
-+    "safaos", "SDL SafaOS audio driver", SAFAAUD_Init, SDL_TRUE
++    "safaos", "SDL SafaOS audio driver", SAFAAUD_Init, SDL_FALSE
 +};
 +
 +#endif
