@@ -50,21 +50,23 @@ cd ..
 
 cd $PORT_NAME
 
-if git clone --filter=blob:none --branch $BRANCH $REPO repo ; then
-    cd repo
-    if [[ ! -z "$COMMIT" ]]; then
-        git checkout "$COMMIT"
-    fi
-    git checkout -b port
-    if ls ../*.patch 2>/dev/null; then
-        git apply ../*.patch
+if [[ ! -z "$REPO" ]] then
+    if git clone --filter=blob:none --branch $BRANCH $REPO repo ; then
+        cd repo
+        if [[ ! -z "$COMMIT" ]]; then
+            git checkout "$COMMIT"
+        fi
+        git checkout -b port
+        if ls ../*.patch 2>/dev/null; then
+            git apply ../*.patch
+        else
+            echo "No patches to apply"
+        fi
     else
-        echo "No patches to apply"
+        cd repo
+        echo "Repo already cloned, please delete it to reclone"
     fi
+    ../build.sh
 else
-    cd repo
-    echo "Repo already cloned, please delete it to reclone"
+    ./build.sh
 fi
-
-
-../build.sh
